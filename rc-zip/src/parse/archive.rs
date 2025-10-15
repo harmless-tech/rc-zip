@@ -1,7 +1,7 @@
 use chrono::{offset::Utc, DateTime, TimeZone};
 use num_enum::{FromPrimitive, IntoPrimitive};
 use ownable::{IntoOwned, ToOwned};
-use winnow::{binary::le_u16, PResult, Partial};
+use winnow::{binary::le_u16, ModalResult, Partial};
 
 use crate::{
     encoding::Encoding,
@@ -317,7 +317,7 @@ pub enum Method {
 
 impl Method {
     /// Parse a method from a byte slice
-    pub fn parser(i: &mut Partial<&[u8]>) -> PResult<Self> {
+    pub fn parser(i: &mut Partial<&[u8]>) -> ModalResult<Self> {
         le_u16(i).map(From::from)
     }
 }
