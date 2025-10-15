@@ -6,7 +6,7 @@ use winnow::{
     binary::{le_u16, le_u32, le_u64, length_take},
     seq,
     token::literal,
-    PResult, Parser, Partial,
+    ModalResult, Parser, Partial,
 };
 
 use crate::error::{Error, FormatError};
@@ -56,7 +56,7 @@ impl<'a> EndOfCentralDirectoryRecord<'a> {
     }
 
     /// Parser for the end of central directory record
-    pub fn parser(i: &mut Partial<&'a [u8]>) -> PResult<Self> {
+    pub fn parser(i: &mut Partial<&'a [u8]>) -> ModalResult<Self> {
         let _ = literal(Self::SIGNATURE).parse_next(i)?;
         seq! {Self {
             disk_nbr: le_u16,
@@ -88,7 +88,7 @@ impl EndOfCentralDirectory64Locator {
     const SIGNATURE: &'static str = "PK\x06\x07";
 
     /// Parser for the zip64 end of central directory locator
-    pub fn parser(i: &mut Partial<&'_ [u8]>) -> PResult<Self> {
+    pub fn parser(i: &mut Partial<&'_ [u8]>) -> ModalResult<Self> {
         _ = literal(Self::SIGNATURE).parse_next(i)?;
         seq! {Self {
             dir_disk_number: le_u32,
@@ -135,7 +135,7 @@ impl EndOfCentralDirectory64Record {
     const SIGNATURE: &'static str = "PK\x06\x06";
 
     /// Parser for the zip64 end of central directory record
-    pub fn parser(i: &mut Partial<&'_ [u8]>) -> PResult<Self> {
+    pub fn parser(i: &mut Partial<&'_ [u8]>) -> ModalResult<Self> {
         _ = literal(Self::SIGNATURE).parse_next(i)?;
         seq! {Self {
             record_size: le_u64,

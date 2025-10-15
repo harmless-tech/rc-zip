@@ -4,9 +4,8 @@ use ownable::{IntoOwned, ToOwned};
 use tracing::trace;
 use winnow::{
     binary::{le_u16, le_u32},
-    prelude::PResult,
     token::{literal, take},
-    Parser, Partial,
+    ModalResult, Parser, Partial,
 };
 
 use crate::{
@@ -74,7 +73,7 @@ impl<'a> CentralDirectoryFileHeader<'a> {
     const SIGNATURE: &'static str = "PK\x01\x02";
 
     /// Parser for the central directory file header
-    pub fn parser(i: &mut Partial<&'a [u8]>) -> PResult<Self> {
+    pub fn parser(i: &mut Partial<&'a [u8]>) -> ModalResult<Self> {
         _ = literal(Self::SIGNATURE).parse_next(i)?;
         let creator_version = Version::parser.parse_next(i)?;
         let reader_version = Version::parser.parse_next(i)?;

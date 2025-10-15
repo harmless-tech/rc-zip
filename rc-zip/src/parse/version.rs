@@ -1,7 +1,7 @@
 use num_enum::{FromPrimitive, IntoPrimitive};
 use ownable::{IntoOwned, ToOwned};
 use std::fmt;
-use winnow::{binary::le_u8, seq, PResult, Parser, Partial};
+use winnow::{binary::le_u8, seq, ModalResult, Parser, Partial};
 
 /// A zip version (either created by, or required when reading an archive).
 ///
@@ -27,7 +27,7 @@ impl fmt::Debug for Version {
 
 impl Version {
     /// Parse a version from a byte slice
-    pub fn parser(i: &mut Partial<&'_ [u8]>) -> PResult<Self> {
+    pub fn parser(i: &mut Partial<&'_ [u8]>) -> ModalResult<Self> {
         seq! {Self {
             version: le_u8,
             host_system: le_u8.map(HostSystem::from),

@@ -11,10 +11,10 @@ use tracing::trace;
 use winnow::{
     binary::{le_u16, le_u32, le_u64, le_u8},
     combinator::opt,
-    error::{ContextError, ErrMode, ErrorKind, FromExternalError},
+    error::{ContextError, ErrMode, FromExternalError},
     seq,
     token::{literal, take},
-    PResult, Parser, Partial,
+    ModalResult, Parser, Partial,
 };
 
 use super::{zero_datetime, Entry, ExtraField, ExtraFieldSettings, Mode};
@@ -68,7 +68,7 @@ impl<'a> LocalFileHeader<'a> {
     pub const SIGNATURE: &'static str = "PK\x03\x04";
 
     /// Parser for the local file header
-    pub fn parser(i: &mut Partial<&'a [u8]>) -> PResult<Self> {
+    pub fn parser(i: &mut Partial<&'a [u8]>) -> ModalResult<Self> {
         let _ = literal(Self::SIGNATURE).parse_next(i)?;
 
         let reader_version = Version::parser.parse_next(i)?;
@@ -89,11 +89,7 @@ impl<'a> LocalFileHeader<'a> {
             Method::Lzma => {
                 let lzma_properties = LzmaProperties::parser.parse_next(i)?;
                 if let Err(e) = lzma_properties.error_if_unsupported() {
-                    return Err(ErrMode::Cut(ContextError::from_external_error(
-                        i,
-                        ErrorKind::Verify,
-                        e,
-                    )));
+                    return Err(ErrMode::Cut(ContextError::from_external_error(i, e)));
                 }
                 MethodSpecific::Lzma(lzma_properties)
             }
@@ -194,7 +190,7 @@ impl DataDescriptorRecord {
     const SIGNATURE: &'static str = "PK\x07\x08";
 
     /// Create a parser for the data descriptor record.
-    pub fn mk_parser(is_zip64: bool) -> impl FnMut(&mut Partial<&'_ [u8]>) -> PResult<Self> {
+    pub fn mk_parser(is_zip64: bool) -> impl FnMut(&mut Partial<&'_ [u8]>) -> ModalResult<Self> {
         move |i| {
             // From appnote.txt:
             //
@@ -238,7 +234,7 @@ pub struct LzmaProperties {
 
 impl LzmaProperties {
     /// Parser for the LZMA properties header.
-    pub fn parser(i: &mut Partial<&'_ [u8]>) -> PResult<Self> {
+    pub fn parser(i: &mut Partial<&'_ [u8]>) -> ModalResult<Self> {
         // Note: the actual properties (5 bytes, contains dictionary size,
         // and various other settings) is not actually read, because lzma-rs
         // reads those properties itself.
