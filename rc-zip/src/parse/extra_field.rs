@@ -4,10 +4,10 @@ use ownable::{IntoOwned, ToOwned};
 use winnow::{
     binary::{le_u16, le_u32, le_u64, le_u8, length_take},
     combinator::{opt, preceded, repeat_till},
-    error::{ErrMode, ErrorKind, ParserError, StrContext},
+    error::{ParserError, StrContext},
     seq,
     token::{literal, take},
-    PResult, Parser, Partial,
+    ModalResult, Parser, Partial,
 };
 
 use crate::parse::NtfsTimestamp;
@@ -19,7 +19,7 @@ pub(crate) struct ExtraFieldRecord<'a> {
 }
 
 impl<'a> ExtraFieldRecord<'a> {
-    pub(crate) fn parser(i: &mut Partial<&'a [u8]>) -> PResult<Self> {
+    pub(crate) fn parser(i: &mut Partial<&'a [u8]>) -> ModalResult<Self> {
         seq! {Self {
             tag: le_u16,
             payload: length_take(le_u16),
@@ -83,7 +83,7 @@ impl<'a> ExtraField<'a> {
     /// field (which depend on whether the u32 values are 0xFFFF_FFFF or not)
     pub fn mk_parser(
         settings: ExtraFieldSettings,
-    ) -> impl FnMut(&mut Partial<&'a [u8]>) -> PResult<Self> {
+    ) -> impl FnMut(&mut Partial<&'a [u8]>) -> ModalResult<Self> {
         move |i| {
             use ExtraField as EF;
             let rec = ExtraFieldRecord::parser.parse_next(i)?;
@@ -135,7 +135,7 @@ impl ExtraZip64Field {
 
     pub(crate) fn mk_parser(
         settings: ExtraFieldSettings,
-    ) -> impl FnMut(&mut Partial<&'_ [u8]>) -> PResult<Self> {
+    ) -> impl FnMut(&mut Partial<&'_ [u8]>) -> ModalResult<Self> {
         move |i| {
             let uncompressed_size = if settings.uncompressed_size_u32 == 0xFFFF_FFFF {
                 le_u64.parse_next(i)?
@@ -174,7 +174,7 @@ pub struct ExtraTimestampField {
 impl ExtraTimestampField {
     const TAG: u16 = 0x5455;
 
-    fn parser(i: &mut Partial<&'_ [u8]>) -> PResult<Self> {
+    fn parser(i: &mut Partial<&'_ [u8]>) -> ModalResult<Self> {
         preceded(
             // 1 byte of flags, if bit 0 is set, modification time is present
             le_u8.verify(|x| x & 0b1 != 0),
@@ -203,13 +203,13 @@ impl<'a> ExtraUnixField<'a> {
     const TAG: u16 = 0x000d;
     const TAG_INFOZIP: u16 = 0x5855;
 
-    fn parser(i: &mut Partial<&'a [u8]>) -> PResult<Self> {
+    fn parser(i: &mut Partial<&'a [u8]>) -> ModalResult<Self> {
         let t_size = le_u16.parse_next(i)?;
 
         // t_size includes the size of the atime .. gid fields, totalling 12 bytes.
         let t_size = t_size
             .checked_sub(12)
-            .ok_or(ErrMode::from_error_kind(i, ErrorKind::Verify))?;
+            .ok_or(ParserError::from_input(i))?;
 
         seq! {Self {
             atime: le_u32,
@@ -251,7 +251,7 @@ pub struct ExtraNewUnixField {
 impl ExtraNewUnixField {
     const TAG: u16 = 0x7875;
 
-    fn parser(i: &mut Partial<&'_ [u8]>) -> PResult<Self> {
+    fn parser(i: &mut Partial<&'_ [u8]>) -> ModalResult<Self> {
         let _ = literal("\x01").parse_next(i)?;
         seq! {Self {
             uid: Self::parse_variable_length_integer,
@@ -260,7 +260,7 @@ impl ExtraNewUnixField {
         .parse_next(i)
     }
 
-    fn parse_variable_length_integer(i: &mut Partial<&'_ [u8]>) -> PResult<u64> {
+    fn parse_variable_length_integer(i: &mut Partial<&'_ [u8]>) -> ModalResult<u64> {
         let slice = length_take(le_u8).parse_next(i)?;
         if let Some(u) = match slice.len() {
             1 => Some(le_u8.parse_peek(slice)?.1 as u64),
@@ -271,7 +271,7 @@ impl ExtraNewUnixField {
         } {
             Ok(u)
         } else {
-            Err(ErrMode::from_error_kind(i, ErrorKind::Alt))
+            Err(ParserError::from_input(i))
         }
     }
 }
@@ -286,7 +286,7 @@ pub struct ExtraNtfsField {
 impl ExtraNtfsField {
     const TAG: u16 = 0x000a;
 
-    fn parser(i: &mut Partial<&'_ [u8]>) -> PResult<Self> {
+    fn parser(i: &mut Partial<&'_ [u8]>) -> ModalResult<Self> {
         let _ = take(4_usize).parse_next(i)?; // reserved (unused)
         seq! {Self {
             // from the winnow docs:
@@ -314,7 +314,7 @@ pub enum NtfsAttr {
 }
 
 impl NtfsAttr {
-    fn parser(i: &mut Partial<&'_ [u8]>) -> PResult<Self> {
+    fn parser(i: &mut Partial<&'_ [u8]>) -> ModalResult<Self> {
         let tag = le_u16.parse_next(i)?;
         let payload = length_take(le_u16).parse_next(i)?;
 
@@ -341,7 +341,7 @@ pub struct NtfsAttr1 {
 }
 
 impl NtfsAttr1 {
-    fn parser(i: &mut Partial<&'_ [u8]>) -> PResult<Self> {
+    fn parser(i: &mut Partial<&'_ [u8]>) -> ModalResult<Self> {
         seq! {Self {
             mtime: NtfsTimestamp::parser,
             atime: NtfsTimestamp::parser,
