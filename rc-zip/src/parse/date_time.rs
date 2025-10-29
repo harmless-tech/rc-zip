@@ -6,7 +6,7 @@ use ownable::{IntoOwned, ToOwned};
 use std::fmt;
 use winnow::{
     binary::{le_u16, le_u64},
-    seq, PResult, Parser, Partial,
+    seq, ModalResult, Parser, Partial,
 };
 
 /// A timestamp in MS-DOS format
@@ -32,7 +32,7 @@ impl fmt::Debug for MsdosTimestamp {
 
 impl MsdosTimestamp {
     /// Parser for MS-DOS timestamps
-    pub fn parser(i: &mut Partial<&'_ [u8]>) -> PResult<Self> {
+    pub fn parser(i: &mut Partial<&'_ [u8]>) -> ModalResult<Self> {
         seq! {Self {
             time: le_u16,
             date: le_u16,
@@ -86,7 +86,7 @@ impl fmt::Debug for NtfsTimestamp {
 
 impl NtfsTimestamp {
     /// Parse an MS-DOS timestamp from a byte slice
-    pub fn parser(i: &mut Partial<&'_ [u8]>) -> PResult<Self> {
+    pub fn parser(i: &mut Partial<&'_ [u8]>) -> ModalResult<Self> {
         le_u64.map(|timestamp| Self { timestamp }).parse_next(i)
     }
 

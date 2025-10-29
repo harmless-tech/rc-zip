@@ -1,6 +1,6 @@
 use chrono::{offset::Utc, DateTime, TimeZone};
 use ownable::{IntoOwned, ToOwned};
-use winnow::{binary::le_u16, PResult, Partial};
+use winnow::{binary::le_u16, ModalResult, Partial};
 
 use crate::{
     encoding::Encoding,
@@ -328,7 +328,7 @@ impl Method {
     const AEX: u16 = 99;
 
     /// Parse a method from a byte slice
-    pub fn parser(i: &mut Partial<&[u8]>) -> PResult<Self> {
+    pub fn parser(i: &mut Partial<&[u8]>) -> ModalResult<Self> {
         le_u16(i).map(From::from)
     }
 }
